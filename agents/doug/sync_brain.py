@@ -10,7 +10,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-VAULT_BRAIN_DIR = Path.home() / "code" / "s-vault" / "03_projects" / "EOS-Agents" / "swarm" / "Marketing" / "PR"
+VAULT_BRAIN_DIR = Path.home() / "code" / "s-vault" / "03_projects" / "EOS-Agents" / "agents" / "doug"
 RUNTIME_BRAIN_DIR = Path(__file__).parent / "brain"
 
 BRAIN_FILES = [
