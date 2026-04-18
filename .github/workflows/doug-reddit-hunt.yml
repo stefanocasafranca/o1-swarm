@@ -1,0 +1,64 @@
+name: Doug Reddit Hunt
+
+on:
+  schedule:
+    # Mon/Wed/Fri 10:00 AM CT (15:07 UTC, staggered off :00)
+    - cron: '7 15 * * 1,3,5'
+  workflow_dispatch:
+    inputs:
+      cycle_type:
+        description: 'Cycle type to run'
+        default: 'reddit_hunt'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: doug-reddit-hunt
+  cancel-in-progress: false
+
+jobs:
+  run-doug:
+    runs-on: ubuntu-latest
+    env:
+      CYCLE_TYPE: ${{ github.event.inputs.cycle_type || 'reddit_hunt' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+      REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+      REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+      REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+      REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+      GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+      LANGCHAIN_PROJECT: o1-swarm-doug
+      LANGCHAIN_TRACING_V2: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull latest state
+        run: git pull --rebase origin main || true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync brain from vault
+        run: python agents/doug/sync_brain.py
+
+      - name: Run Doug
+        run: python -m agents.doug
+
+      - name: Commit memory
+        run: |
+          git config user.name "Doug [bot]"
+          git config user.email "doug-bot@users.noreply.github.com"
+          git add memory/
+          git diff --cached --quiet || git commit -m "doug: $(date -u +%Y-%m-%d) reddit_hunt cycle"
+          git push
