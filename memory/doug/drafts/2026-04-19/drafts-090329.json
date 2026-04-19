@@ -1,0 +1,6 @@
+[
+  {
+    "thread_url": "https://www.reddit.com/r/ClaudeAI/comments/1skqvp2/how_i_ship_a_production_web_app_solo_with_a/",
+    "comment_body": "This is exactly the right mental model. Executor vs. architect separation is what keeps Claude Code from going rogue on your codebase.\n\nI ran into the same problem and built something that formalizes this pattern: BUILD_SCRIPT (https://github.com/stefanocasafranca/build-script). The core idea is that the planning context and the execution context stay separate. Claude Code gets a tight, scoped prompt every time. No improvising, no context bleed.\n\nA few things I found that compound on your approach:\n\n1. Checkpoint files between phases. If execution drifts, you reset to the last clean checkpoint instead of untangling a mess.\n2. Explicit \"done\" criteria in every prompt. Claude Code stops when the criteria are met, not when it thinks it is done.\n3. One file touched per prompt where possible. Smaller blast radius on mistakes.\n\nYour dual-Claude setup is smart. The orchestrator holding the map while the executor stays blind to everything outside its current task is exactly how you keep output quality high at speed.\n\nWould be curious what your prompt structure looks like for the orchestrator side if you are open to sharing."
+  }
+]
