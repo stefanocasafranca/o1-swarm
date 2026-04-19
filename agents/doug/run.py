@@ -91,7 +91,16 @@ def main():
     initial_state = {"runtime_state": state}
 
     try:
-        result = graph.invoke(initial_state)
+        result = graph.invoke(initial_state, config={
+            "run_name": f"doug:{cycle_type}",
+            "tags": [cycle_type, state.mode, f"day-{state.mission_day}"],
+            "metadata": {
+                "run_id": state.run_id,
+                "mode": state.mode,
+                "mission_day": state.mission_day,
+                "star_count": state.star_count,
+            },
+        })
         # Update state from graph result
         if "runtime_state" in result:
             state = result["runtime_state"]
