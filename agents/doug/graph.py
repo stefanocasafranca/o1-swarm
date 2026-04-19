@@ -9,9 +9,8 @@ Control flow is pure code.
 import json
 import logging
 from datetime import datetime, timezone
-from operator import add
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any, TypedDict
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -36,18 +35,74 @@ logger = logging.getLogger(__name__)
 MEMORY_DIR = Path(__file__).parent.parent.parent / "memory" / "doug"
 
 
-class DougState(dict):
-    """Typed state for the Doug graph."""
-    pass
+class DougState(TypedDict, total=False):
+    """Typed state for the Doug graph. All keys optional for partial updates."""
+    runtime_state: Any
+    system_prompt: str
+    posted_urls: set
+    recent_metrics: list
+    errors: list
+    # reddit_hunt keys
+    serpapi_candidates: list
+    praw_candidates: list
+    threads_found: int
+    merged_candidates: list
+    filtered_candidates: list
+    ranked_candidates: list
+    threads_ranked: int
+    drafted_comments: list
+    drafts_created: int
+    post_policy: dict
+    comments_posted: int
+    # ops_maintenance keys
+    star_result: dict
+    pace: dict
+    conversion_updates: list
+    campaign_summary: str
 
 
 def _get_llm(model: str = "claude-sonnet-4-6"):
     return ChatAnthropic(model=model, temperature=0, max_tokens=4096)
 
 
+def _extract_json_array(text: str) -> list:
+    """Robustly extract a JSON array from LLM output."""
+    import re
+
+    # Find the outermost [...] block (greedy)
+    match = re.search(r'\[.*\]', text, re.DOTALL)
+    if not match:
+        return []
+
+    raw = match.group()
+
+    # Try parsing as-is first
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # Fix common LLM JSON issues: unescaped newlines inside strings
+    # Replace literal newlines inside strings with \n
+    fixed = re.sub(r'(?<=": ")(.*?)(?="[,\}\]])', lambda m: m.group().replace('\n', '\\n'), raw, flags=re.DOTALL)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: try to find individual JSON objects
+    objects = []
+    for obj_match in re.finditer(r'\{[^{}]*\}', raw, re.DOTALL):
+        try:
+            objects.append(json.loads(obj_match.group()))
+        except json.JSONDecodeError:
+            continue
+    return objects
+
+
 # --- SHARED NODES ---
 
-def load_context(state: dict) -> dict:
+def load_context(state: DougState) -> dict:
     """Deterministic: load brain, memory, and recent context. No LLM call."""
     system_prompt = build_system_prompt()
 
@@ -71,10 +126,11 @@ def load_context(state: dict) -> dict:
     }
 
 
-def finalize_run(state: dict) -> dict:
+def finalize_run(state: DougState) -> dict:
     """Deterministic: write run artifact, send summary email."""
     runtime_state = state.get("runtime_state")
     if not runtime_state:
+        logger.error("finalize_run: no runtime_state in graph state")
         return {}
 
     now = datetime.now(timezone.utc)
@@ -98,6 +154,7 @@ def finalize_run(state: dict) -> dict:
     }
     artifact_path = run_dir / f"{runtime_state.run_id}.json"
     artifact_path.write_text(json.dumps(artifact, indent=2) + "\n")
+    logger.info(f"Run artifact written: {artifact_path}")
 
     # Check shadow promotion
     if check_shadow_promotion(runtime_state):
@@ -123,6 +180,7 @@ def finalize_run(state: dict) -> dict:
             "body": email_data["body"],
         })
         runtime_state.summary_email_sent = True
+        logger.info("Summary email sent")
     except Exception as e:
         logger.error(f"Summary email failed: {e}")
         runtime_state.summary_email_sent = False
@@ -132,33 +190,35 @@ def finalize_run(state: dict) -> dict:
 
 # --- REDDIT HUNT PIPELINE ---
 
-def collect_candidates(state: dict) -> dict:
+def collect_candidates(state: DougState) -> dict:
     """Run SerpApi (primary) and PRAW (fallback) discovery in sequence."""
     keywords = "CLI tool developer workflow automation build script"
 
     serpapi_results = []
     praw_results = []
+    errors = list(state.get("errors", []))
 
     try:
         serpapi_results = search_serpapi.invoke({"keywords": keywords})
     except Exception as e:
         logger.warning(f"SerpApi failed: {e}")
-        state.setdefault("errors", []).append(f"SerpApi: {e}")
+        errors.append(f"SerpApi: {e}")
 
     try:
         praw_results = search_reddit.invoke({"keywords": keywords})
     except Exception as e:
         logger.warning(f"PRAW failed: {e}")
-        state.setdefault("errors", []).append(f"PRAW: {e}")
+        errors.append(f"PRAW: {e}")
 
     return {
         "serpapi_candidates": serpapi_results,
         "praw_candidates": praw_results,
         "threads_found": len(serpapi_results) + len(praw_results),
+        "errors": errors,
     }
 
 
-def merge_and_dedup(state: dict) -> dict:
+def merge_and_dedup(state: DougState) -> dict:
     """Deterministic: merge SerpApi + PRAW results, dedup by URL."""
     serpapi = state.get("serpapi_candidates", [])
     praw = state.get("praw_candidates", [])
@@ -183,7 +243,7 @@ def merge_and_dedup(state: dict) -> dict:
     return {"merged_candidates": merged}
 
 
-def policy_filter(state: dict) -> dict:
+def policy_filter(state: DougState) -> dict:
     """Deterministic: apply allowlist, caps, age, dedup filters."""
     candidates = state.get("merged_candidates", [])
     posted_urls = state.get("posted_urls", set())
@@ -193,7 +253,7 @@ def policy_filter(state: dict) -> dict:
     return {"filtered_candidates": filtered}
 
 
-def rank_candidates_llm(state: dict) -> dict:
+def rank_candidates_llm(state: DougState) -> dict:
     """LLM node (bounded, single call): rank filtered candidates."""
     candidates = state.get("filtered_candidates", [])
     if not candidates:
@@ -217,14 +277,7 @@ def rank_candidates_llm(state: dict) -> dict:
         ])
 
         # Parse ranked URLs from response
-        content = response.content
-        # Try to extract JSON array
-        import re
-        match = re.search(r'\[.*?\]', content, re.DOTALL)
-        if match:
-            ranked_urls = json.loads(match.group())
-        else:
-            ranked_urls = []
+        ranked_urls = _extract_json_array(response.content)
 
         # Map back to full candidate objects
         url_to_candidate = {c["url"]: c for c in candidates}
@@ -234,11 +287,12 @@ def rank_candidates_llm(state: dict) -> dict:
 
     except Exception as e:
         logger.error(f"Ranking failed: {e}")
-        state.setdefault("errors", []).append(f"Ranking LLM: {e}")
-        return {"ranked_candidates": candidates[:5], "threads_ranked": len(candidates[:5])}
+        errors = list(state.get("errors", []))
+        errors.append(f"Ranking LLM: {e}")
+        return {"ranked_candidates": candidates[:5], "threads_ranked": len(candidates[:5]), "errors": errors}
 
 
-def draft_comments_llm(state: dict) -> dict:
+def draft_comments_llm(state: DougState) -> dict:
     """LLM node (bounded, single call): draft comments for top threads."""
     ranked = state.get("ranked_candidates", [])
     if not ranked:
@@ -251,8 +305,11 @@ def draft_comments_llm(state: dict) -> dict:
     prompt = (
         "Draft a genuine, helpful Reddit comment for each of these threads. "
         "The comment should answer the poster's question and naturally mention BUILD_SCRIPT "
-        "as a solution where relevant. Write in Stefano's voice: confident, warm, value-first. "
-        "No em-dashes. Return a JSON array of objects with 'thread_url' and 'comment_body'.\n\n"
+        "(https://github.com/stefanocasafranca/build-script) as a solution where relevant. "
+        "Write in Stefano's voice: confident, warm, value-first. "
+        "No em-dashes. Keep each comment under 200 words. "
+        "Return ONLY a valid JSON array of objects with 'thread_url' and 'comment_body'. "
+        "Use \\n for newlines inside strings. No markdown code fences.\n\n"
         f"Threads:\n{threads_text}"
     )
 
@@ -262,13 +319,7 @@ def draft_comments_llm(state: dict) -> dict:
             HumanMessage(content=prompt),
         ])
 
-        content = response.content
-        import re
-        match = re.search(r'\[.*?\]', content, re.DOTALL)
-        if match:
-            drafts = json.loads(match.group())
-        else:
-            drafts = []
+        drafts = _extract_json_array(response.content)
 
         # Persist drafts
         now = datetime.now(timezone.utc)
@@ -281,11 +332,12 @@ def draft_comments_llm(state: dict) -> dict:
 
     except Exception as e:
         logger.error(f"Drafting failed: {e}")
-        state.setdefault("errors", []).append(f"Drafting LLM: {e}")
-        return {"drafted_comments": [], "drafts_created": 0}
+        errors = list(state.get("errors", []))
+        errors.append(f"Drafting LLM: {e}")
+        return {"drafted_comments": [], "drafts_created": 0, "errors": errors}
 
 
-def apply_post_policy(state: dict) -> dict:
+def apply_post_policy(state: DougState) -> dict:
     """Deterministic: check mode, caps, and decide whether to post."""
     runtime_state = state.get("runtime_state")
     drafts = state.get("drafted_comments", [])
@@ -293,7 +345,7 @@ def apply_post_policy(state: dict) -> dict:
     return {"post_policy": policy_result}
 
 
-def post_comments(state: dict) -> dict:
+def post_comments(state: DougState) -> dict:
     """Post approved comments to Reddit."""
     policy = state.get("post_policy", {})
     drafts = state.get("drafted_comments", [])
@@ -304,6 +356,7 @@ def post_comments(state: dict) -> dict:
 
     max_posts = policy.get("count", 0)
     posted = 0
+    errors = list(state.get("errors", []))
 
     for draft in drafts[:max_posts]:
         try:
@@ -316,28 +369,30 @@ def post_comments(state: dict) -> dict:
                 runtime_state.daily_comment_count += 1
         except Exception as e:
             logger.error(f"Post failed: {e}")
-            state.setdefault("errors", []).append(f"Posting: {e}")
+            errors.append(f"Posting: {e}")
 
-    return {"comments_posted": posted, "runtime_state": runtime_state}
+    return {"comments_posted": posted, "runtime_state": runtime_state, "errors": errors}
 
 
 # --- OPS MAINTENANCE PIPELINE ---
 
-def check_stars(state: dict) -> dict:
+def check_stars(state: DougState) -> dict:
     """Deterministic: fetch star count and log metrics."""
     try:
         result = check_github_stars.invoke({})
         runtime_state = state.get("runtime_state")
         if runtime_state and "stars" in result:
             runtime_state.star_count = result["stars"]
+            logger.info(f"Star count: {result['stars']}")
         return {"star_result": result, "runtime_state": runtime_state}
     except Exception as e:
         logger.error(f"Star check failed: {e}")
-        state.setdefault("errors", []).append(f"Stars: {e}")
-        return {"star_result": {"error": str(e)}}
+        errors = list(state.get("errors", []))
+        errors.append(f"Stars: {e}")
+        return {"star_result": {"error": str(e)}, "errors": errors}
 
 
-def evaluate_pace(state: dict) -> dict:
+def evaluate_pace(state: DougState) -> dict:
     """Deterministic: compare pace to target."""
     star_result = state.get("star_result", {})
     return {
@@ -350,13 +405,13 @@ def evaluate_pace(state: dict) -> dict:
     }
 
 
-def conversion_surfaces(state: dict) -> dict:
+def conversion_surfaces(state: DougState) -> dict:
     """Deterministic: check if repo metadata needs updates."""
     # Placeholder for Phase 2 repo optimization
     return {"conversion_updates": []}
 
 
-def summarize_llm(state: dict) -> dict:
+def summarize_llm(state: DougState) -> dict:
     """LLM node (optional): generate narrative campaign summary."""
     pace = state.get("pace", {})
     system_prompt = state.get("system_prompt", "")
@@ -383,22 +438,15 @@ def summarize_llm(state: dict) -> dict:
 
 # --- GRAPH BUILDERS ---
 
-def _route_after_policy(state: dict) -> str:
+def _route_after_policy(state: DougState) -> str:
     policy = state.get("post_policy", {})
     if policy.get("allowed"):
         return "post_comments"
     return "finalize_run"
 
 
-def _route_cycle(state: dict) -> str:
-    runtime_state = state.get("runtime_state")
-    if runtime_state and runtime_state.cycle_type == "ops_maintenance":
-        return "check_stars"
-    return "collect_candidates"
-
-
-def build_reddit_hunt_graph() -> StateGraph:
-    graph = StateGraph(dict)
+def build_reddit_hunt_graph():
+    graph = StateGraph(DougState)
     graph.add_node("load_context", load_context)
     graph.add_node("collect_candidates", collect_candidates)
     graph.add_node("merge_and_dedup", merge_and_dedup)
@@ -426,8 +474,8 @@ def build_reddit_hunt_graph() -> StateGraph:
     return graph.compile()
 
 
-def build_ops_maintenance_graph() -> StateGraph:
-    graph = StateGraph(dict)
+def build_ops_maintenance_graph():
+    graph = StateGraph(DougState)
     graph.add_node("load_context", load_context)
     graph.add_node("check_stars", check_stars)
     graph.add_node("evaluate_pace", evaluate_pace)

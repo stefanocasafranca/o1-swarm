@@ -13,6 +13,7 @@ build/
 
 # Brain files (synced from vault, not committed)
 agents/*/brain/*.md
+agents/*/brain/*.yaml
 
 # IDE
 .vscode/

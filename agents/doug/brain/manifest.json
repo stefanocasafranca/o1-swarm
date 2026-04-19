@@ -1,14 +1,18 @@
 {
-  "brain_version": "2026-04-18T16:02:45.869809+00:00",
-  "brain_hash": "sha256:7994455fc5b57d169c6a9d7be14f6027dc10f2e0192f6cea442a97760ac2c14f",
-  "source_root": "/Users/stefanocasafranca/code/s-vault/03_projects/EOS-Agents/swarm/Marketing/PR",
+  "brain_version": "2026-04-19T07:07:42.258477+00:00",
+  "brain_hash": "sha256:e9d7788f3a6fab3283064c9c62eb80592a14ada15ba58e59752d850677cda86b",
+  "source_root": "/Users/stefanocasafranca/code/s-vault/03_projects/o1-agents/agents/doug",
   "files": {
     "SOUL.md": "d8bc243335a607d20793fe49890816b3a7b5c1640746194d71c33435d6674d1e",
     "AGENTS.md": "b478174df6bd39abb0c272a97b28a83771121854981bd300fe6e2b49693f9453",
     "HEARTBEAT.md": "98eec30ef962d2b824192d64f79ada8d843b54d37adae80e32e6caa3b68c5fd9",
     "Mission.md": "2a235a849b1a7cb323e94ad528813fc0fcdb1b65ad5c2ec9857f21e03df36135",
     "USER.md": "bf221e6fd39d154337a43194e8ffafa990d7a83c7903a1892ab8fb6c57f3e50f",
-    "IDENTITY.md": "4197a529cf64e62f5781b17fee0bada5ca3f2d068b6d3108750c194a2f8b9399",
-    "MEMORY.md": "f660e6e4e1f0603915b166e436fa2e57a5e2a192d6c1fbb3573f2f52cc57d5ce"
+    "IDENTITY.md": "5523032614032fcb4b3fb85354c1bf3ad91e76378229c44394e6e827d4e5ebaf",
+    "MEMORY.md": "f660e6e4e1f0603915b166e436fa2e57a5e2a192d6c1fbb3573f2f52cc57d5ce",
+    "agent.contract.yaml": "2f22af662165b25427de1ef567ff6aadb20b1f12e792b2d73c813b345869c537",
+    "tool_policy.yaml": "4f55f746245b292308979c09de20612af1939355298a6000702eab143a1f523f",
+    "memory_policy.yaml": "9679ee14584a8e6c9eb83886f2a92e05676924c1d19b38279f8e207d9996f997",
+    "heartbeat.yaml": "609df297afe52fe2f441d2a8a0db20f0ca87cd91cfbbd9825ca9711f8905572c"
   }
 }

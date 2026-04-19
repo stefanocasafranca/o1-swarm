@@ -45,6 +45,10 @@ def main():
 
     logger.info(f"Starting Doug: cycle_type={cycle_type}")
 
+    # Staleness check: auto-sync brain if vault files changed
+    from agents.doug.sync_brain import ensure_fresh
+    manifest = ensure_fresh()
+
     # Load persisted state
     state = load_state()
 
@@ -56,12 +60,9 @@ def main():
     # Reset daily caps if new day
     reset_daily_caps(state)
 
-    # Load brain manifest for audit
-    manifest_path = Path(__file__).parent / "brain" / "manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text())
-        state.brain_hash = manifest.get("brain_hash", "")
-        state.brain_version = manifest.get("brain_version", "")
+    # Record brain version for audit trail
+    state.brain_hash = manifest.get("brain_hash", "")
+    state.brain_version = manifest.get("brain_version", "")
 
     # Set run identity
     state.cycle_type = cycle_type
