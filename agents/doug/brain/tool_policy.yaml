@@ -1,0 +1,35 @@
+# Tool permissions and rate limits for Doug
+# Each tool maps to a file in o1-swarm/tools/
+
+tools:
+  serpapi_discovery:
+    permission: autonomous
+    rate_limit: 20/cycle
+    fallback: reddit_search
+
+  reddit_search:
+    permission: autonomous
+    rate_limit: 20/cycle
+    fallback: null
+
+  reddit_posting:
+    permission: mode_dependent
+    shadow_behavior: dry_run
+    live_behavior: autonomous
+    rate_limit: 5/day
+
+  reddit_account:
+    permission: autonomous
+    rate_limit: 1/cycle
+
+  github_stars:
+    permission: autonomous
+    rate_limit: 1/cycle
+
+  github_repo:
+    permission: autonomous
+    rate_limit: 1/day
+
+  gmail:
+    permission: autonomous
+    rate_limit: 1/cycle

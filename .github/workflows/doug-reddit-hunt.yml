@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Sync brain from vault
+      - name: Sync brain (skips gracefully in CI)
         run: python agents/doug/sync_brain.py
 
       - name: Run Doug

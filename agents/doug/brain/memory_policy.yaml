@@ -1,0 +1,41 @@
+# Memory discipline for Doug
+# Defines what goes where in the memory ladder
+
+curated:
+  file: MEMORY.md
+  location: vault
+  update_trigger: retrospective_only
+  max_entries: 50
+  promotion_rule: "pattern confirmed across 3+ interactions or campaigns"
+  never_store:
+    - session-specific context
+    - run IDs or timestamps
+    - raw API responses
+    - unverified hypotheses
+    - counters or metrics
+
+runtime_state:
+  location: runtime
+  path: memory/doug/state.json
+  format: json
+  includes:
+    - mode
+    - daily_comment_count
+    - star_count
+    - brain_hash
+    - last_run_slot
+    - healthy_shadow_days
+    - gmail_thread_message_id
+    - cycle_slot_key
+
+episodic:
+  location: runtime
+  path: memory/doug/
+  format: jsonl
+  retention_days: 90
+  files:
+    - metrics.jsonl
+    - posted-comments.jsonl
+    - reply-monitor.json
+    - runs/*.json
+    - drafts/*.md

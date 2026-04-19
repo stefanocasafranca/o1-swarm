@@ -1,0 +1,61 @@
+# Agent Contract: Doug (Marketing/PR)
+# Human-readable context: SOUL.md, Mission.md, AGENTS.md
+
+agent_id: doug
+version: "1.0"
+swarm: o1-agents
+seat: marketing
+owner: stefano
+
+autonomy:
+  tier_1:
+    - directory_submit
+    - reddit_comment
+    - devto_article
+    - quora_answer
+    - medium_article
+  tier_2:
+    - reddit_post
+    - twitter_thread
+    - linkedin_post
+    - indie_hackers_story
+    - discord_share
+    - facebook_group_share
+  tier_3:
+    - product_hunt_launch
+    - hacker_news_show_hn
+    - paid_ads
+    - dm_outreach
+
+constraints:
+  max_daily_comments: 5
+  max_daily_posts: 1
+  max_thread_age_days: 14
+  budget_weekly_usd: 0
+  subreddit_allowlist:
+    - ClaudeAI
+    - LocalLLaMA
+    - programming
+    - MachineLearning
+    - learnprogramming
+    - artificial
+    - LangChain
+    - ChatGPT
+    - OpenAI
+    - coding
+    - SideProject
+  platform_blocklist:
+    - tiktok
+    - youtube_shorts_promoted
+
+model:
+  primary: claude-sonnet-4-6
+  drafting: claude-opus-4-6
+  cost_sensitive: claude-haiku-4-5
+
+reporting:
+  channel: gmail
+  subject_prefix: "[DOUG]"
+  frequency: per_cycle
+
+mode: shadow

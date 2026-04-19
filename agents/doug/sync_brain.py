@@ -93,7 +93,17 @@ def sync():
 
 
 def ensure_fresh():
-    """Auto-sync if stale. Call this at the start of every run."""
+    """Auto-sync if stale. Call this at the start of every run.
+
+    If vault directory doesn't exist (e.g. CI), uses committed brain files.
+    """
+    if not VAULT_BRAIN_DIR.exists():
+        print(f"Vault not available ({VAULT_BRAIN_DIR}), using committed brain files.")
+        manifest_path = RUNTIME_BRAIN_DIR / "manifest.json"
+        if manifest_path.exists():
+            return json.loads(manifest_path.read_text())
+        return {"brain_hash": "", "brain_version": ""}
+
     if is_stale():
         print("Brain is stale, re-syncing...")
         return sync()

@@ -11,9 +11,8 @@ __pycache__/
 dist/
 build/
 
-# Brain files (synced from vault, not committed)
-agents/*/brain/*.md
-agents/*/brain/*.yaml
+# Brain files are synced from vault but committed to repo
+# so GitHub Actions can access them without vault access
 
 # IDE
 .vscode/
