@@ -1,0 +1,6 @@
+[
+  {
+    "thread_url": "https://www.reddit.com/r/ClaudeAI/comments/1sl1ev5/which_workflow_are_you_actively_using/",
+    "comment_body": "Actively using a shell-based orchestration setup I built called BUILD_SCRIPT (https://github.com/stefanocasafranca/build-script). The core idea: instead of babysitting Claude through a UI, you define your agent tasks in structured scripts and let the whole thing run with minimal interruption.\n\nWhat I found works well in practice:\n- Break the work into discrete, verifiable steps. Claude handles each step, the script validates output before moving on.\n- Keep context lean per step. Stuffing everything into one giant prompt kills quality.\n- Log every action. When something breaks, you know exactly where.\n\nThe workflow that clicked for me is coding tasks where you have a clear spec. Feed the spec, let the agents work through it in sequence, review the diff at the end.\n\nWould genuinely love to hear what you built for multi-agent coding. Are you doing parallel agents or sequential? That is the design decision I keep revisiting. Parallel is faster but harder to keep consistent state across agents."
+  }
+]
