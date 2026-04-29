@@ -1,0 +1,6 @@
+[
+  {
+    "thread_url": "https://www.reddit.com/r/ClaudeAI/comments/1su66ah/spent_a_week_building_a_cli_so_my_ai_agent_would/",
+    "comment_body": "This resonates hard. The context-drift problem is real, and a week of CLI work to solve it is absolutely worth it.\n\nI ran into the same wall building AI agents. My Claude sessions kept losing track of project structure mid-task, so I built something to fix it: BUILD_SCRIPT (https://github.com/stefanocasafranca/build-script).\n\nThe core idea: give the agent a single executable script that reconstructs your full project context from scratch on every run. No more drift. No more \"wait, what files do we have again.\" The agent always starts from a clean, accurate picture of the repo.\n\nDifferent approach than a CLI wrapper, but same root problem you're solving. Might be worth a look if you want a second pattern to compare against.\n\nWhat was the biggest failure mode you hit before building your CLI? Curious whether it was context length, file hallucination, or something else entirely."
+  }
+]
