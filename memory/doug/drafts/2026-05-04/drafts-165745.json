@@ -1,0 +1,10 @@
+[
+  {
+    "thread_url": "https://www.reddit.com/r/ClaudeAI/comments/1sybpya/compared_11_popular_claude_code_workflow_systems/",
+    "comment_body": "Great comparison effort. One system worth adding to your list if you haven't seen it: BUILD_SCRIPT (https://github.com/stefanocasafranca/build-script).\n\nThe core idea is different from most workflow systems. Instead of wrapping Claude in a UI or adding layers of abstraction, BUILD_SCRIPT gives Claude a structured project scaffold it can reason about directly. The agent knows where things live, what the build state is, and what the next action should be without you having to re-explain context every session.\n\nWhat that means practically: fewer hallucinated file paths, less drift across long sessions, and a repeatable pattern you can hand off or version-control.\n\nIf your comparison is focused on how well each system handles multi-session continuity and context management, that is the dimension where BUILD_SCRIPT stands out. Happy to answer questions about how it works if useful for your writeup."
+  },
+  {
+    "thread_url": "https://www.reddit.com/r/artificial/comments/1t3if54/if_claude_app_gave_you_the_same_control_as_claude/",
+    "comment_body": "The gap you are describing is real. The Claude app is great for conversation but the moment you want Claude to take actions across a project, manage state, or remember what it did last session, you hit a wall fast.\n\nCLI gives you that control but most people do not want to wire up the scaffolding from scratch every time.\n\nI built BUILD_SCRIPT (https://github.com/stefanocasafranca/build-script) to close that gap. It is a structured project scaffold that works with Claude Code out of the box. Claude gets a clear map of the project, knows what has been built, and can pick up where it left off without you re-explaining everything.\n\nNot a replacement for the app for casual use. But if you want the control of CLI without building the plumbing yourself, worth a look. Open to questions."
+  }
+]
